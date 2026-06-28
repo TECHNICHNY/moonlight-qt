@@ -1,4 +1,5 @@
 #include "session.h"
+#include "qdee_client_stats.h"
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "backend/richpresencemanager.h"
@@ -575,6 +576,10 @@ Session::~Session()
 {
     // NB: This may not get destroyed for a long time! Don't put any non-trivial cleanup here.
     // Use Session::exec() or DeferredSessionCleanupTask instead.
+
+    // QDEE M2: ensure stats thread is stopped
+    qdee_client_stats::set_session_active(false);
+    qdee_client_stats::stop();
 
     SDL_DestroyMutex(m_DecoderLock);
 }
@@ -1379,6 +1384,20 @@ void Session::getWindowDimensions(int& x, int& y,
     }
 
     x = y = SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex);
+
+    // QDEE M1: override geometry if --geometry X,Y,W,H was provided
+    if (m_Preferences->qdeeWindowX >= 0) {
+        x = m_Preferences->qdeeWindowX;
+        y = m_Preferences->qdeeWindowY;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "QDEE: overriding window position to %d,%d", x, y);
+    }
+    if (m_Preferences->qdeeWindowWidth > 0) {
+        width = m_Preferences->qdeeWindowWidth;
+        height = m_Preferences->qdeeWindowHeight;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "QDEE: overriding window size to %dx%d", width, height);
+    }
 }
 
 void Session::updateOptimalWindowDisplayMode()
@@ -1762,8 +1781,14 @@ void Session::interrupt()
 
 void Session::exec()
 {
+    // QDEE M2: start client stats broadcasting for qdee.exe wrapper
+    qdee_client_stats::start(m_Preferences->qdeeInstanceId);
+    qdee_client_stats::set_session_active(true);
+
     // If the connection failed, clean up and abort the connection.
     if (!m_AsyncConnectionSuccess) {
+        qdee_client_stats::set_session_active(false);
+        qdee_client_stats::stop();
         delete m_InputHandler;
         m_InputHandler = nullptr;
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
@@ -1799,6 +1824,11 @@ void Session::exec()
     // We always want a resizable window with High DPI enabled
     Uint32 defaultWindowFlags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
 
+    // QDEE M1: add borderless flag when --frameless is set (multi-monitor tiling)
+    if (m_Preferences->qdeeFrameless) {
+        defaultWindowFlags |= SDL_WINDOW_BORDERLESS;
+    }
+
     // If we're starting in windowed mode and the Moonlight GUI is maximized or
     // minimized, match that with the streaming window.
     if (!m_IsFullScreen && m_QtWindow != nullptr) {
@@ -1826,7 +1856,8 @@ void Session::exec()
 #ifdef Q_OS_DARWIN
     std::string windowName = QString(m_Computer->name).toStdString();
 #else
-    std::string windowName = QString(m_Computer->name + " - Moonlight").toStdString();
+    // QDEE M3: rebrand window title from "Moonlight" to "QDEE Client"
+    std::string windowName = QString(m_Computer->name + " - QDEE Client").toStdString();
 #endif
 
     m_Window = SDL_CreateWindow(windowName.c_str(),

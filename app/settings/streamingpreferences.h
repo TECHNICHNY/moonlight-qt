@@ -188,6 +188,15 @@ public:
     Language language;
     CaptureSysKeysMode captureSysKeysMode;
 
+    // QDEE M1: wrapper-managed options (set via CLI by qdee.exe, not persisted to QSettings)
+    bool qdeeFrameless = false;           ///< M1: SDL_WINDOW_BORDERLESS for multi-monitor tiling
+    int qdeeWindowX = -1;                 ///< M1: window geometry override (-1 = default centering)
+    int qdeeWindowY = -1;                 ///< M1: window geometry override
+    int qdeeWindowWidth = -1;             ///< M1: window geometry override (-1 = stream resolution)
+    int qdeeWindowHeight = -1;            ///< M1: window geometry override
+    int qdeeInstanceId = 0;               ///< M1/M2: instance ID for stats file naming + config isolation
+    QString qdeeConfigDirOverride;        ///< M1: per-instance config directory override
+
 signals:
     void displayModeChanged();
     void bitrateChanged();
