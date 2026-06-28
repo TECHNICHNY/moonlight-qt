@@ -2,10 +2,12 @@ QT += core quick network quickcontrols2 svg
 CONFIG += c++17
 
 unix:!macx {
-    TARGET = moonlight
+    # QDEE M3: rebrand binary moonlight -> qdee-client
+    TARGET = qdee-client
 } else {
     # On macOS, this is the name displayed in the global menu bar
-    TARGET = Moonlight
+    # QDEE M3: rebrand binary Moonlight -> qdee-client
+    TARGET = qdee-client
 }
 
 include(../globaldefs.pri)
@@ -192,6 +194,7 @@ SOURCES += \
     streaming/input/mouse.cpp \
     streaming/input/reltouch.cpp \
     streaming/session.cpp \
+    streaming/qdee_client_stats.cpp \
     streaming/audio/audio.cpp \
     streaming/audio/renderers/sdlaud.cpp \
     gui/computermodel.cpp \
@@ -229,6 +232,7 @@ HEADERS += \
     settings/streamingpreferences.h \
     streaming/input/input.h \
     streaming/session.h \
+    streaming/qdee_client_stats.h \
     streaming/audio/renderers/renderer.h \
     streaming/audio/renderers/sdl.h \
     gui/computermodel.h \

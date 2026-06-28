@@ -372,6 +372,12 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     parser.addChoiceOption("video-codec", "video codec", m_VideoCodecMap.keys());
     parser.addChoiceOption("video-decoder", "video decoder", m_VideoDecoderMap.keys());
 
+    // QDEE M1: wrapper orchestration flags (set by qdee.exe Rust supervisor)
+    parser.addFlagOption("frameless", "borderless window for multi-monitor tiling (QDEE)");
+    parser.addValueOption("geometry", "window geometry X,Y,W,H (QDEE)");
+    parser.addValueOption("instance-id", "QDEE instance ID for stats/config isolation");
+    parser.addValueOption("config-dir", "override config directory (QDEE per-instance isolation)");
+
     if (!parser.parse(args)) {
         parser.showError(parser.errorText());
     }
@@ -504,6 +510,27 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     // Resolve --video-decoder option
     if (parser.isSet("video-decoder")) {
         preferences->videoDecoderSelection = mapValue(m_VideoDecoderMap, parser.getChoiceOptionValue("video-decoder"));
+    }
+
+    // QDEE M1: resolve wrapper orchestration flags
+    preferences->qdeeFrameless = parser.isSet("frameless");
+    if (parser.isSet("instance-id")) {
+        preferences->qdeeInstanceId = parser.getIntOption("instance-id");
+    }
+    if (parser.isSet("config-dir")) {
+        preferences->qdeeConfigDirOverride = parser.value("config-dir");
+    }
+    if (parser.isSet("geometry")) {
+        // Parse "X,Y,W,H" geometry string
+        QRegularExpression geomRegExp("^(\\d+),(\\d+),(\\d+),(\\d+)$");
+        auto geomMatch = geomRegExp.match(parser.value("geometry"));
+        if (!geomMatch.hasMatch()) {
+            parser.showError(QString("Invalid geometry format (expected X,Y,W,H): %1").arg(parser.value("geometry")));
+        }
+        preferences->qdeeWindowX = geomMatch.captured(1).toInt();
+        preferences->qdeeWindowY = geomMatch.captured(2).toInt();
+        preferences->qdeeWindowWidth = geomMatch.captured(3).toInt();
+        preferences->qdeeWindowHeight = geomMatch.captured(4).toInt();
     }
 
     // This method will not return and terminates the process if --version or
