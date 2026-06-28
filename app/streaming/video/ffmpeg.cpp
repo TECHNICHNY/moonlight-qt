@@ -2,6 +2,7 @@
 #include "ffmpeg.h"
 #include "utils.h"
 #include "streaming/session.h"
+#include "streaming/qdee_client_stats.h"
 
 #include <h264_stream.h>
 
@@ -2030,6 +2031,16 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
 
         // Accumulate these values into the global stats
         addVideoStats(m_ActiveWndVideoStats, m_GlobalVideoStats);
+
+        // QDEE M2.5: publish stats to qdee_client_stats for the wrapper.
+        // receivedFrames is per 1-second window; divide by 2 because the Hub
+        // multiplies fps × 2 (Hub assumes 500 ms window).
+        qdee_client_stats::set_fps(m_ActiveWndVideoStats.receivedFrames / 2);
+        qdee_client_stats::set_rtt_ms(m_ActiveWndVideoStats.lastRtt);
+        qdee_client_stats::set_bitrate_kbps(static_cast<unsigned int>(
+            m_ActiveWndVideoStats.videoMegabitsPerSec * 1000.0));
+        qdee_client_stats::add_dropped(m_ActiveWndVideoStats.networkDroppedFrames +
+                                       m_ActiveWndVideoStats.pacerDroppedFrames);
 
         // Move this window into the last window slot and clear it for next window
         SDL_memcpy(&m_LastWndVideoStats, &m_ActiveWndVideoStats, sizeof(m_ActiveWndVideoStats));
